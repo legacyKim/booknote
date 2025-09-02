@@ -69,6 +69,37 @@ export default function TaskView({ searchOn }: tTaskName) {
     setJsonData(data);
   };
 
+  const uploadToGoogleDrive = async () => {
+    if (!taskname) {
+      alert("업로드할 파일이 없습니다.");
+      return;
+    }
+
+    const filename = taskname;
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/api/upload-file/${filename}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ folderType: "task" }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert("파일이 Google Drive에 성공적으로 업로드되었습니다!");
+      } else {
+        alert(`업로드 실패: ${result.error || "알 수 없는 오류"}`);
+      }
+    } catch (error) {
+      console.error("업로드 오류:", error);
+      alert("업로드 중 오류가 발생했습니다.");
+    }
+  };
+
   return (
     <div className="content">
       <div className="topic size_876">
@@ -83,13 +114,21 @@ export default function TaskView({ searchOn }: tTaskName) {
           ref={contentRef}
         ></div>
       </div>
-      <button
-        className="task_save icon-ok"
-        type="button"
-        onClick={() => {
-          save();
-        }}
-      ></button>
+
+      <div className="memobox_on_off">
+        <button
+          className="icon-upload-cloud"
+          type="button"
+          onClick={uploadToGoogleDrive}
+        ></button>
+        <button
+          className="task_save icon-ok"
+          type="button"
+          onClick={() => {
+            save();
+          }}
+        ></button>
+      </div>
     </div>
   );
 }

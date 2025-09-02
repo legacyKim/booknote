@@ -2,6 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
+const { uploadFileToFolder } = require("./googleDrive");
 
 const app = express();
 const PORT = 3001;
@@ -403,6 +404,44 @@ app.post("/api/task", (req, res) => {
     }
     res.status(201).send("파일 저장 완료");
   });
+});
+
+// Google Drive 업로드 API
+app.post("/api/upload-file/:filename", async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const { folderType } = req.body; // 클라이언트에서 지정한 폴더 타입
+    let filePath;
+
+    // 클라이언트가 지정한 폴더 타입에 따라 경로 결정
+    if (folderType === "file") {
+      filePath = path.join(fileFolderPath, filename);
+    } else if (folderType === "task") {
+      filePath = path.join(taskFolderPath, filename);
+    } else {
+      return res
+        .status(400)
+        .json({ error: "올바른 폴더 타입을 지정해주세요 (file 또는 task)" });
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: "파일을 찾을 수 없습니다." });
+    }
+
+    const result = await uploadFileToFolder(filePath, filename, folderType);
+    res.json({
+      success: true,
+      message: `파일이 Google Drive의 ${folderType} 폴더에 업로드되었습니다.`,
+      fileId: result.id,
+      folder: folderType,
+    });
+  } catch (error) {
+    console.error("업로드 오류:", error);
+    res.status(500).json({
+      error: "업로드 중 오류가 발생했습니다.",
+      details: error.message,
+    });
+  }
 });
 
 app.listen(PORT, () => {

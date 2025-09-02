@@ -459,12 +459,6 @@ main.off {
   white-space: pre-line;
 }
 
-.task_save {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-}
-
 /* content */
 
 .content {
@@ -532,7 +526,7 @@ main.off {
 
 .content .author h4,
 .content .author input {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 400;
   padding: 0;
   width: 100%;
@@ -772,6 +766,8 @@ main.off {
   right: 2vw;
   display: flex;
   justify-content: center;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .memo_sort {
