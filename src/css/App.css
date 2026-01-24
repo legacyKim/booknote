@@ -3,6 +3,7 @@
   --font-size: 16px;
   --main-color: #2568d4;
   --header-height: 56px;
+  --topic-height: 65px;
   --search-popup-height: 60px;
   --book-list-width: 180px;
   --gray-color: #0d0d0d0d;
@@ -439,6 +440,7 @@ main.off {
   border-bottom: 1px solid var(--gray-color);
   font-size: 24px;
   margin-bottom: 14px;
+  max-height: var(--topic-height);
 }
 
 .topic > h4 {
@@ -448,15 +450,16 @@ main.off {
 .task_content {
   position: relative;
   display: block;
-  margin-bottom: 100px;
   font-size: 16px;
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.65;
+  height: calc(100% - var(--topic-height) - var(--header-height));
 }
 
 .task_content > div {
   outline: none;
   white-space: pre-line;
+  height: 100%;
 }
 
 /* content */
@@ -1096,4 +1099,162 @@ main.off {
   left: 50%;
   transform: translate(-50%, -50%);
   font-family: GmarketSans;
+}
+
+/* Opinion 팝업 버튼 */
+.opinion_popup_btn {
+  position: fixed;
+  top: 80px;
+  right: 2vw;
+}
+
+.opinion_popup_btn button {
+  color: #000;
+  font-size: 13px;
+}
+
+/* Opinion 팝업 모달 */
+.opinion_popup_overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.opinion_popup_modal {
+  background-color: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.opinion_popup_content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+.opinion_list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.opinion_item {
+  padding: 16px 20px 4px;
+  transition: background-color 0.2s ease;
+}
+
+.opinion_item:last-child {
+  border-bottom: none;
+}
+
+.opinion_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.opinion_info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.opinion_page {
+  display: inline-block;
+  color: var(--main-color);
+  padding: 6px 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.opinion_memo_index {
+  color: var(--gray-color2);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.opinion_actions {
+  display: flex;
+  gap: 8px;
+}
+
+.go_to_memo_btn {
+  padding: 6px;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--gray-color2);
+  transition: all 0.2s ease;
+  font-size: 12px;
+}
+
+.toggle_memo_btn.expanded {
+  background-color: var(--main-color);
+  color: white;
+  border-color: var(--main-color);
+  transform: rotate(180deg);
+}
+
+.go_to_memo_btn:hover {
+  color: var(--main-color);
+}
+
+.opinion_content p {
+  margin: 0;
+  color: var(--font-color);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+
+.no_opinions {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--gray-color2);
+  font-size: 16px;
+  margin: 0;
+}
+
+/* 메모 내용 토글 */
+.memo_content_toggle {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.memo_content_toggle.expanded {
+  max-height: initial;
+}
+
+.memo_content_inner p {
+  margin: 0;
+  color: var(--gray-color2);
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 300;
+  padding: 12px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  margin-left: 4px;
+}
+
+/* 메모 하이라이트 효과 */
+.memo_list li.highlight > div:first-child {
+  background-color: rgba(37, 104, 212, 0.1);
+  transition: background-color 0.3s ease;
 }

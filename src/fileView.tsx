@@ -41,6 +41,10 @@ export default function FileView({
 
   const [jsonData, setJsonData] = useState<tFileContent | null>(null);
 
+  // Opinion 팝업 관련 상태
+  const [opinionPopOn, setOpinionPopOn] = useState<boolean>(false);
+  const [expandedMemos, setExpandedMemos] = useState<Set<number>>(new Set());
+
   useEffect(() => {
     if (filename !== filenameInView || newJsonData) {
       fetch(`http://localhost:3001/api/file/${filename}`)
@@ -524,6 +528,63 @@ export default function FileView({
     }
   };
 
+  // Opinion 팝업 관련 함수들
+  const getAllOpinions = () => {
+    if (!jsonData) return [];
+
+    const allOpinions: Array<{
+      memoIndex: number;
+      memoContent: string;
+      opinion: string;
+      page: string;
+      memoIndexName: string;
+    }> = [];
+
+    jsonData.content.forEach((memo, memoIndex) => {
+      memo.opinionList.forEach((op) => {
+        allOpinions.push({
+          memoIndex,
+          memoContent: memo.memo,
+          opinion: op.opinion,
+          page: memo.page,
+          memoIndexName: memo.memoIndex,
+        });
+      });
+    });
+
+    return allOpinions;
+  };
+
+  const toggleMemoExpansion = (memoIndex: number) => {
+    setExpandedMemos((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(memoIndex)) {
+        newSet.delete(memoIndex);
+      } else {
+        newSet.add(memoIndex);
+      }
+      return newSet;
+    });
+  };
+
+  const scrollToMemo = (memoIndex: number) => {
+    setOpinionPopOn(false);
+
+    // 해당 메모로 스크롤
+    setTimeout(() => {
+      const memoElements = document.querySelectorAll(".memo_list li");
+      const targetMemo = memoElements[memoIndex];
+      if (targetMemo) {
+        targetMemo.scrollIntoView({ behavior: "smooth", block: "center" });
+        // 잠시 하이라이트 효과
+        targetMemo.classList.add("highlight");
+        setTimeout(() => {
+          targetMemo.classList.remove("highlight");
+        }, 2000);
+      }
+    }, 100);
+  };
+
   // Google Drive 업로드
   const uploadToGoogleDrive = async () => {
     if (!filename) {
@@ -654,6 +715,17 @@ export default function FileView({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Opinion 팝업 버튼 */}
+        <div className="opinion_popup_btn">
+          <button
+            type="button"
+            className="icon-th-list"
+            onClick={() => setOpinionPopOn(true)}
+            aria-label="view all opinions"
+            title="모든 의견 보기"
+          ></button>
         </div>
       </div>
 
@@ -964,6 +1036,71 @@ export default function FileView({
           aria-label="sort downward button"
         ></button>
       </div>
+
+      {/* Opinion 팝업 모달 */}
+      {opinionPopOn && (
+        <div
+          className="opinion_popup_overlay"
+          onClick={() => setOpinionPopOn(false)}
+        >
+          <div
+            className="opinion_popup_modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="opinion_popup_content">
+              {getAllOpinions().length === 0 ? (
+                <p className="no_opinions">아직 작성된 의견이 없습니다.</p>
+              ) : (
+                <ul className="opinion_list">
+                  {getAllOpinions().map((item, index) => (
+                    <li key={index} className="opinion_item">
+                      <div className="opinion_header">
+                        <div className="opinion_info">
+                          <span className="opinion_page">{item.page}p</span>
+                          <span className="opinion_memo_index">
+                            {item.memoIndexName}
+                          </span>
+                        </div>
+                        <div className="opinion_actions">
+                          <button
+                            type="button"
+                            className="go_to_memo_btn"
+                            onClick={() => scrollToMemo(item.memoIndex)}
+                            title="메모로 이동"
+                          >
+                            <span className="icon-feather"></span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="opinion_content">
+                        <p
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleMemoExpansion(index);
+                          }}
+                        >
+                          {item.opinion}
+                        </p>
+                      </div>
+
+                      <div
+                        className={`memo_content_toggle ${
+                          expandedMemos.has(index) ? "expanded" : ""
+                        }`}
+                      >
+                        <div className="memo_content_inner">
+                          <p>{item.memoContent}</p>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

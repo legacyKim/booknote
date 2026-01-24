@@ -29,7 +29,7 @@ async function setupAuth() {
 
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: "offline",
-    scope: ["https://www.googleapis.com/auth/drive.file"],
+    scope: ["https://www.googleapis.com/auth/drive"],
   });
 
   console.log("🔗 아래 URL에 접속하여 인증하세요:");
