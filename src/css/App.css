@@ -1104,8 +1104,13 @@ main.off {
 /* Opinion 팝업 버튼 */
 .opinion_popup_btn {
   position: fixed;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   top: 80px;
   right: 2vw;
+  gap: 8px;
 }
 
 .opinion_popup_btn button {

@@ -42,7 +42,7 @@ function authorize() {
     redirect_uris = credentials.redirect_uris || ["urn:ietf:wg:oauth:2.0:oob"];
   } else {
     throw new Error(
-      "지원되지 않는 credentials.json 형식입니다. installed, web 또는 직접 구성된 형식이 필요합니다."
+      "지원되지 않는 credentials.json 형식입니다. installed, web 또는 직접 구성된 형식이 필요합니다.",
     );
   }
 
@@ -55,7 +55,7 @@ function authorize() {
   const oAuth2Client = new google.auth.OAuth2(
     client_id,
     client_secret,
-    redirectUri
+    redirectUri,
   );
 
   // 미리 설정된 토큰 사용
@@ -70,7 +70,7 @@ function authorize() {
       scope: SCOPES,
     });
     throw new Error(
-      `인증이 필요합니다. 다음 URL에 접속하여 인증 후 코드를 받아주세요: ${authUrl}`
+      `인증이 필요합니다. 다음 URL에 접속하여 인증 후 코드를 받아주세요: ${authUrl}`,
     );
   }
 
@@ -99,7 +99,7 @@ async function getTokenFromCode(authCode) {
   const oAuth2Client = new google.auth.OAuth2(
     client_id,
     client_secret,
-    redirectUri
+    redirectUri,
   );
 
   try {
@@ -128,7 +128,7 @@ async function uploadFileToFolder(filePath, fileName, folderName) {
 
   if (folders.data.files.length === 0) {
     throw new Error(
-      `Google Drive에서 '${folderName}' 폴더를 찾을 수 없습니다.`
+      `Google Drive에서 '${folderName}' 폴더를 찾을 수 없습니다.`,
     );
   }
 
@@ -174,7 +174,130 @@ async function uploadFileToFolder(filePath, fileName, folderName) {
   }
 }
 
+// 폴더의 파일 목록 가져오기
+async function getFilesFromFolder(folderName) {
+  const auth = authorize();
+  const drive = google.drive({ version: "v3", auth });
+
+  // 폴더 검색
+  const folders = await drive.files.list({
+    q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder'`,
+    fields: "files(id, name)",
+  });
+
+  if (folders.data.files.length === 0) {
+    throw new Error(
+      `Google Drive에서 '${folderName}' 폴더를 찾을 수 없습니다.`,
+    );
+  }
+
+  const folderId = folders.data.files[0].id;
+
+  // 폴더 내 파일 목록 가져오기
+  const files = await drive.files.list({
+    q: `'${folderId}' in parents and mimeType='text/plain'`,
+    fields: "files(id, name, modifiedTime, size)",
+    orderBy: "modifiedTime desc",
+  });
+
+  return files.data.files.map((file) => ({
+    id: file.id,
+    name: file.name,
+    modifiedTime: file.modifiedTime,
+    size: file.size,
+  }));
+}
+
+// 파일 다운로드
+async function downloadFile(fileId, fileName, downloadPath) {
+  const auth = authorize();
+  const drive = google.drive({ version: "v3", auth });
+
+  // download 폴더가 없으면 생성
+  if (!fs.existsSync(downloadPath)) {
+    fs.mkdirSync(downloadPath, { recursive: true });
+  }
+
+  // 파일명 중복 처리
+  let finalFileName = fileName;
+  let counter = 1;
+
+  while (fs.existsSync(path.join(downloadPath, finalFileName))) {
+    const ext = path.extname(fileName);
+    const nameWithoutExt = path.basename(fileName, ext);
+    finalFileName = `${nameWithoutExt}_${counter}${ext}`;
+    counter++;
+  }
+
+  const finalFilePath = path.join(downloadPath, finalFileName);
+
+  try {
+    const response = await drive.files.get({
+      fileId: fileId,
+      alt: "media",
+    });
+
+    // 스트림으로 파일 저장
+    const writer = fs.createWriteStream(finalFilePath);
+    response.data.pipe(writer);
+
+    return new Promise((resolve, reject) => {
+      writer.on("finish", () => {
+        resolve({
+          originalName: fileName,
+          savedName: finalFileName,
+          path: finalFilePath,
+          renamed: fileName !== finalFileName,
+        });
+      });
+      writer.on("error", reject);
+    });
+  } catch (error) {
+    console.error(`파일 다운로드 실패: ${fileName}`, error);
+    throw error;
+  }
+}
+
+// 전체 폴더 다운로드
+async function downloadAllFilesFromFolder(folderName) {
+  const downloadPath = path.join(__dirname, "download", folderName);
+  const files = await getFilesFromFolder(folderName);
+  const results = [];
+
+  console.log(
+    `📁 ${folderName} 폴더에서 ${files.length}개 파일 다운로드 시작...`,
+  );
+
+  for (const file of files) {
+    try {
+      const result = await downloadFile(file.id, file.name, downloadPath);
+      results.push(result);
+      console.log(
+        `✅ ${file.name} ${result.renamed ? `→ ${result.savedName}` : ""}`,
+      );
+    } catch (error) {
+      console.error(`❌ ${file.name} 다운로드 실패:`, error.message);
+      results.push({
+        originalName: file.name,
+        error: error.message,
+        failed: true,
+      });
+    }
+  }
+
+  return {
+    folderName,
+    downloadPath,
+    totalFiles: files.length,
+    results,
+  };
+}
+
 module.exports = {
+  authorize,
   uploadFileToFolder,
   getTokenFromCode,
+  getFilesFromFolder,
+  downloadFile,
+  downloadAllFilesFromFolder,
 };

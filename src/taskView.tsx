@@ -1,9 +1,12 @@
 import { useEffect, useState, useRef, ChangeEvent } from "react";
 import { useParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import DownloadPopup from "./DownloadPopup";
 
 export type tTaskName = {
   searchOn: boolean;
+  downloadPopupOpen: boolean;
+  setDownloadPopupOpen: React.Dispatch<React.SetStateAction<boolean>>;
   //   setNewFiles: React.Dispatch<React.SetStateAction<boolean>>;
   //   searchResMemo: string;
   //   bookListClose: boolean;
@@ -16,7 +19,11 @@ export type tFileContent = {
   content: string;
 };
 
-export default function TaskView({ searchOn }: tTaskName) {
+export default function TaskView({
+  searchOn,
+  downloadPopupOpen,
+  setDownloadPopupOpen,
+}: tTaskName) {
   const { taskname } = useParams();
   const navigate = useNavigate();
 
@@ -84,7 +91,7 @@ export default function TaskView({ searchOn }: tTaskName) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ folderType: "task" }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -117,9 +124,15 @@ export default function TaskView({ searchOn }: tTaskName) {
 
       <div className="memobox_on_off">
         <button
-          className="icon-upload-cloud"
+          className="icon-download-cloud"
+          onClick={() => setDownloadPopupOpen(true)}
+          title="Google Drive에서 다운로드"
+        ></button>
+        <button
+          className="icon-upload-cloud-2"
           type="button"
           onClick={uploadToGoogleDrive}
+          title="Google Drive에 업로드"
         ></button>
         <button
           className="task_save icon-ok"
@@ -129,6 +142,12 @@ export default function TaskView({ searchOn }: tTaskName) {
           }}
         ></button>
       </div>
+
+      {/* DownloadPopup 컴포넌트 */}
+      <DownloadPopup
+        isOpen={downloadPopupOpen}
+        onClose={() => setDownloadPopupOpen(false)}
+      />
     </div>
   );
 }

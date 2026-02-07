@@ -65,6 +65,9 @@ function App() {
   // memoBox active
   const [memoBoxOn, setMemoBoxOn] = useState<boolean>(true);
 
+  // download popup
+  const [downloadPopupOpen, setDownloadPopupOpen] = useState<boolean>(false);
+
   // task
   const [taskListClose, setTaskListClose] = useState<boolean>(false);
 
@@ -148,12 +151,20 @@ function App() {
                   taskListClose={taskListClose}
                   memoBoxOn={memoBoxOn}
                   setMemoBoxOn={setMemoBoxOn}
+                  downloadPopupOpen={downloadPopupOpen}
+                  setDownloadPopupOpen={setDownloadPopupOpen}
                 ></FileView>
               }
             />
             <Route
               path="/task/:taskname"
-              element={<TaskView searchOn={searchOn}></TaskView>}
+              element={
+                <TaskView
+                  searchOn={searchOn}
+                  downloadPopupOpen={downloadPopupOpen}
+                  setDownloadPopupOpen={setDownloadPopupOpen}
+                ></TaskView>
+              }
             ></Route>
             <Route
               path="/search"

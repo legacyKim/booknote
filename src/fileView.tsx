@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, ChangeEvent } from "react";
 import { useParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import DownloadPopup from "./DownloadPopup";
 
 export type tFileName = {
   searchOn: boolean;
@@ -10,6 +11,8 @@ export type tFileName = {
   taskListClose: boolean;
   memoBoxOn: boolean;
   setMemoBoxOn: React.Dispatch<React.SetStateAction<boolean>>;
+  downloadPopupOpen: boolean;
+  setDownloadPopupOpen: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 export type Memo = {
@@ -32,6 +35,8 @@ export default function FileView({
   taskListClose,
   memoBoxOn,
   setMemoBoxOn,
+  downloadPopupOpen,
+  setDownloadPopupOpen,
 }: tFileName) {
   const { filename } = useParams();
   const navigate = useNavigate();
@@ -103,7 +108,7 @@ export default function FileView({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(newMemo),
-        }
+        },
       );
 
       if (!res.ok) throw new Error("메모 추가 실패");
@@ -132,7 +137,7 @@ export default function FileView({
         `http://localhost:3001/api/file/${filename}/memo/${index}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       if (!res.ok) throw new Error("삭제 실패");
@@ -180,7 +185,7 @@ export default function FileView({
             page: editPage,
             opinionList: opinionDefault,
           }),
-        }
+        },
       );
 
       if (!res.ok) throw new Error("수정 실패");
@@ -260,7 +265,7 @@ export default function FileView({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newBookName }),
-      }
+      },
     );
 
     if (!res.ok) {
@@ -292,7 +297,7 @@ export default function FileView({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ newAuthorName }),
-      }
+      },
     );
 
     if (!res.ok) {
@@ -340,7 +345,7 @@ export default function FileView({
   const memoEditFormRef = useRef<HTMLFormElement>(null);
 
   const memoEditTextareaChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
     setEditMemo(e.target.value);
 
@@ -416,7 +421,7 @@ export default function FileView({
           body: JSON.stringify({
             opinion: opinion,
           }),
-        }
+        },
       );
 
       if (!res.ok) throw new Error("수정 실패");
@@ -436,7 +441,7 @@ export default function FileView({
 
   const opinionCorr = async (
     memoIndex: number,
-    opinionIndex: number | null
+    opinionIndex: number | null,
   ) => {
     try {
       const res = await fetch(
@@ -445,7 +450,7 @@ export default function FileView({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ opinion: myOpinionCorr }), // 수정된 내용
-        }
+        },
       );
 
       if (!res.ok) throw new Error("의견 수정 실패");
@@ -466,7 +471,7 @@ export default function FileView({
   const myOpinionRef = useRef<HTMLTextAreaElement>(null);
 
   const myOpinionTextareaChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
     setMyOpinion(e.target.value);
 
@@ -481,7 +486,7 @@ export default function FileView({
   const myOpinionCorrRef = useRef<HTMLTextAreaElement>(null);
 
   const myOpinionCorrTextareaChange = (
-    e: React.ChangeEvent<HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
     setMyOpinionCorr(e.target.value);
 
@@ -513,7 +518,7 @@ export default function FileView({
         `http://localhost:3001/api/file/${filename}/opinion/${memoIndex}/${opinionIndex}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       if (!res.ok) throw new Error("의견 삭제 실패");
@@ -599,7 +604,7 @@ export default function FileView({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ folderType: "file" }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -1011,9 +1016,15 @@ export default function FileView({
 
       <div className="memobox_on_off">
         <button
-          className="icon-upload-cloud"
+          className="icon-download-cloud"
+          onClick={() => setDownloadPopupOpen(true)}
+          title="Google Drive에서 다운로드"
+        ></button>
+        <button
+          className="icon-upload-cloud-2"
           type="button"
           onClick={uploadToGoogleDrive}
+          title="Google Drive에 업로드"
         ></button>
         <button
           className="icon-feather"
@@ -1101,6 +1112,12 @@ export default function FileView({
           </div>
         </div>
       )}
+
+      {/* DownloadPopup 컴포넌트 */}
+      <DownloadPopup
+        isOpen={downloadPopupOpen}
+        onClose={() => setDownloadPopupOpen(false)}
+      />
     </div>
   );
 }

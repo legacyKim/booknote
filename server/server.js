@@ -2,7 +2,12 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
-const { uploadFileToFolder } = require("./googleDrive");
+const {
+  uploadFileToFolder,
+  getFilesFromFolder,
+  downloadAllFilesFromFolder,
+  downloadFile,
+} = require("./googleDrive");
 
 const app = express();
 const PORT = 3001;
@@ -292,7 +297,7 @@ app.delete(
         return res.status(500).json({ error: "JSON 파싱 오류" });
       }
     });
-  }
+  },
 );
 
 app.get("/api/search", (req, res) => {
@@ -315,7 +320,7 @@ app.get("/api/search", (req, res) => {
           try {
             const parsed = JSON.parse(data);
             const matched = parsed.content?.filter((item) =>
-              item.memo.includes(q)
+              item.memo.includes(q),
             );
 
             if (matched?.length > 0) {
@@ -439,6 +444,174 @@ app.post("/api/upload-file/:filename", async (req, res) => {
     console.error("업로드 오류:", error);
     res.status(500).json({
       error: "업로드 중 오류가 발생했습니다.",
+      details: error.message,
+    });
+  }
+});
+
+// 🚀 NEW: 구글 드라이브 다운로드 API들
+
+// 구글 드라이브 폴더의 파일 목록 조회
+app.get("/api/drive/:folderName/files", async (req, res) => {
+  const { folderName } = req.params;
+
+  if (folderName !== "file" && folderName !== "task") {
+    return res.status(400).json({ error: "file 또는 task 폴더만 지원됩니다." });
+  }
+
+  try {
+    const files = await getFilesFromFolder(folderName);
+    res.json({
+      folderName,
+      files,
+      count: files.length,
+    });
+  } catch (error) {
+    console.error(`${folderName} 폴더 목록 조회 오류:`, error);
+    res.status(500).json({
+      error: "폴더 목록 조회 중 오류가 발생했습니다.",
+      details: error.message,
+    });
+  }
+});
+
+// 특정 폴더의 모든 파일 다운로드
+app.post("/api/drive/:folderName/download-all", async (req, res) => {
+  const { folderName } = req.params;
+
+  if (folderName !== "file" && folderName !== "task") {
+    return res.status(400).json({ error: "file 또는 task 폴더만 지원됩니다." });
+  }
+
+  try {
+    const result = await downloadAllFilesFromFolder(folderName);
+    res.json({
+      message: `${folderName} 폴더 다운로드 완료`,
+      ...result,
+    });
+  } catch (error) {
+    console.error(`${folderName} 폴더 다운로드 오류:`, error);
+    res.status(500).json({
+      error: "폴더 다운로드 중 오류가 발생했습니다.",
+      details: error.message,
+    });
+  }
+});
+
+// 특정 파일 다운로드 (서버에 저장하고 브라우저에도 다운로드)
+app.get("/api/drive/download-file/:fileId/:fileName", async (req, res) => {
+  const { fileId, fileName } = req.params;
+  const folderType = req.query.folderType || "file"; // file 또는 task
+
+  try {
+    const auth = require("./googleDrive").authorize();
+    const { google } = require("googleapis");
+    const drive = google.drive({ version: "v3", auth });
+
+    // 파일 메타데이터 가져오기
+    const fileInfo = await drive.files.get({
+      fileId: fileId,
+      fields: "name, size, mimeType",
+    });
+
+    // 파일 내용 가져오기
+    const response = await drive.files.get(
+      {
+        fileId: fileId,
+        alt: "media",
+      },
+      {
+        responseType: "stream",
+      },
+    );
+
+    // 파일 경로 결정 로직
+    const fileFolder = folderType === "task" ? "task" : "file";
+    const targetPath = path.join(__dirname, fileFolder, fileName);
+    const downloadPath = path.join(__dirname, "download", fileName);
+
+    let finalPath = targetPath;
+
+    // 같은 이름의 파일이 이미 존재하는지 확인
+    if (fs.existsSync(targetPath)) {
+      // file/task 폴더에 같은 파일이 있으면 download 폴더에 저장
+      finalPath = downloadPath;
+
+      // download 폴더가 없으면 생성
+      const downloadDir = path.dirname(downloadPath);
+      if (!fs.existsSync(downloadDir)) {
+        fs.mkdirSync(downloadDir, { recursive: true });
+      }
+    }
+
+    // 파일을 서버에 저장
+    const writeStream = fs.createWriteStream(finalPath);
+
+    let savedSuccessfully = false;
+
+    return new Promise((resolve, reject) => {
+      response.data.pipe(writeStream);
+
+      writeStream.on("finish", () => {
+        savedSuccessfully = true;
+
+        // 브라우저 다운로드를 위한 헤더 설정
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+        );
+
+        if (fileInfo.data.size) {
+          res.setHeader("Content-Length", fileInfo.data.size);
+        }
+
+        // 저장된 파일을 브라우저로 전송
+        const readStream = fs.createReadStream(finalPath);
+        readStream.pipe(res);
+
+        resolve();
+      });
+
+      writeStream.on("error", (error) => {
+        console.error("파일 저장 오류:", error);
+        reject(error);
+      });
+
+      response.data.on("error", (error) => {
+        console.error("파일 다운로드 오류:", error);
+        reject(error);
+      });
+    });
+  } catch (error) {
+    console.error("파일 다운로드 오류:", error);
+    res.status(500).json({
+      error: "파일 다운로드 중 오류가 발생했습니다.",
+      details: error.message,
+    });
+  }
+});
+
+// 특정 파일 다운로드 (기존 방식 - 서버에 저장)
+app.post("/api/drive/download-file", async (req, res) => {
+  const { fileId, fileName, folderName } = req.body;
+
+  if (!fileId || !fileName) {
+    return res.status(400).json({ error: "fileId와 fileName이 필요합니다." });
+  }
+
+  try {
+    const downloadPath = path.join(__dirname, "download", folderName || "misc");
+    const result = await downloadFile(fileId, fileName, downloadPath);
+
+    res.json({
+      message: "파일 다운로드 완료",
+      ...result,
+    });
+  } catch (error) {
+    console.error("파일 다운로드 오류:", error);
+    res.status(500).json({
+      error: "파일 다운로드 중 오류가 발생했습니다.",
       details: error.message,
     });
   }
