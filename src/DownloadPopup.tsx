@@ -56,25 +56,19 @@ export default function DownloadPopup({ isOpen, onClose }: DownloadPopupProps) {
     setDownloading((prev) => [...prev, fileKey]);
 
     try {
-      // 서버에 저장하면서 브라우저 다운로드도 실행
-      const downloadUrl = `http://localhost:3001/api/drive/download-file/${file.id}/${encodeURIComponent(file.name)}?folderType=${folderName}`;
+      const downloadUrl = `http://localhost:3001/api/drive/download-file/${file.id}/${encodeURIComponent(file.name)}?folderType=${folderName}&noBrowserDownload=1`;
+      const response = await fetch(downloadUrl);
 
-      // 새 창에서 다운로드 링크 열기
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = file.name;
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      if (!response.ok) {
+        throw new Error("download failed");
+      }
 
-      // 성공 메시지
       setTimeout(() => {
-        alert(`✅ ${file.name} 다운로드를 시작했습니다.`);
+        alert(`✅ ${file.name} 저장을 완료했습니다.`);
       }, 100);
     } catch (error) {
       console.error("다운로드 실패:", error);
-      alert("다운로드 중 오류가 발생했습니다.");
+      alert("저장 중 오류가 발생했습니다.");
     }
 
     // 다운로드 상태 해제 (즉시)

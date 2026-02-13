@@ -502,6 +502,7 @@ app.post("/api/drive/:folderName/download-all", async (req, res) => {
 app.get("/api/drive/download-file/:fileId/:fileName", async (req, res) => {
   const { fileId, fileName } = req.params;
   const folderType = req.query.folderType || "file"; // file 또는 task
+  const noBrowserDownload = req.query.noBrowserDownload === "1";
 
   try {
     const auth = require("./googleDrive").authorize();
@@ -554,6 +555,15 @@ app.get("/api/drive/download-file/:fileId/:fileName", async (req, res) => {
 
       writeStream.on("finish", () => {
         savedSuccessfully = true;
+
+        if (noBrowserDownload) {
+          res.json({
+            message: "파일 저장 완료",
+            savedPath: finalPath,
+            fileName: fileName,
+          });
+          return resolve();
+        }
 
         // 브라우저 다운로드를 위한 헤더 설정
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
