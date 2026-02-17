@@ -24,11 +24,12 @@ async function setupAuth() {
   const oAuth2Client = new google.auth.OAuth2(
     client_id,
     client_secret,
-    redirectUri
+    redirectUri,
   );
 
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: "offline",
+    prompt: "consent", // 강제로 동의 화면 표시하여 refresh_token 재발급
     scope: ["https://www.googleapis.com/auth/drive"],
   });
 

@@ -17,6 +17,7 @@ export type tTaskName = {
 export type tFileContent = {
   topic: string;
   content: string;
+  updatedData?: string;
 };
 
 export default function TaskView({
@@ -114,6 +115,22 @@ export default function TaskView({
           {jsonData?.topic}
         </h4>
       </div>
+      <span className="updated-data size_876">
+        {jsonData?.updatedData && (
+          <>
+            마지막 수정일:{" "}
+            {new Date(jsonData.updatedData).toLocaleDateString("ko-KR", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}{" "}
+            {new Date(jsonData.updatedData).toLocaleTimeString("ko-KR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </>
+        )}
+      </span>
       <div className="task_content size_876">
         <div
           contentEditable="true"
