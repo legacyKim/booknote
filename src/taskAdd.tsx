@@ -7,18 +7,18 @@ type tTaskAdd = {
 };
 
 export default function TaskAdd({ setNewTask, taskAdd, setTaskAdd }: tTaskAdd) {
-  const [topic, setTopic] = useState("");
+  const [title, setTitle] = useState("");
 
   const taskSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (topic === "") {
+    if (title === "") {
       alert("주제를 입력해 주세요.");
       return;
     }
 
     const newContent = {
-      topic,
+      title,
       content: [],
     };
 
@@ -33,7 +33,7 @@ export default function TaskAdd({ setNewTask, taskAdd, setTaskAdd }: tTaskAdd) {
 
       if (!res.ok) throw new Error("Failed to save task");
 
-      setTopic("");
+      setTitle("");
 
       setNewTask(true);
       setTaskAdd(false);
@@ -53,17 +53,17 @@ export default function TaskAdd({ setNewTask, taskAdd, setTaskAdd }: tTaskAdd) {
       >
         <span>TASK SAVE</span>
         <div className="input_box">
-          <label>TOPIC</label>
+          <label>title</label>
           <input
             type="text"
-            value={topic}
+            value={title}
             onChange={(e) => {
               const value = e.target.value;
               const filtered = value.replace(
                 /[^\p{Script=Hangul}a-zA-Z0-9\s]/gu,
                 ""
               );
-              setTopic(filtered);
+              setTitle(filtered);
             }}
             className="border p-1 ml-2"
           />

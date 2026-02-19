@@ -25,7 +25,7 @@ export type Memo = {
 export type tFileContent = {
   author: string;
   content: Memo[];
-  updatedData?: string;
+  updated_at?: string;
 };
 
 export default function FileView({
@@ -638,6 +638,9 @@ export default function FileView({
     }
   };
 
+      console.log(jsonData)
+
+
   return (
     <div className={`content ${searchOn ? "searchOn" : ""}`}>
       <div className="top size_876">
@@ -752,16 +755,17 @@ export default function FileView({
         </div>
       </div>
 
+
       <span className="updated-data size_876">
-        {jsonData?.updatedData && (
+        {jsonData?.updated_at && (
           <>
             마지막 수정일:{" "}
-            {new Date(jsonData.updatedData).toLocaleDateString("ko-KR", {
+            {new Date(jsonData.updated_at).toLocaleDateString("ko-KR", {
               year: "numeric",
               month: "long",
               day: "numeric",
             })}{" "}
-            {new Date(jsonData.updatedData).toLocaleTimeString("ko-KR", {
+            {new Date(jsonData.updated_at).toLocaleTimeString("ko-KR", {
               hour: "2-digit",
               minute: "2-digit",
             })}

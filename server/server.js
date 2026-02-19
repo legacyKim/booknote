@@ -25,33 +25,33 @@ app.get("/api/files", (req, res) => {
     if (err) return res.status(500).send("Error reading directory");
     const txtFiles = files.filter((file) => file.endsWith(".txt"));
 
-    // 각 파일의 updatedData를 읽어서 정렬
+    // 각 파일의 updated_at를 읽어서 정렬
     const filePromises = txtFiles.map((file) => {
       return new Promise((resolve) => {
         const filePath = path.join(fileFolderPath, file);
         fs.readFile(filePath, "utf8", (err, data) => {
-          let updatedData = null;
+          let updated_at = null;
           if (!err) {
             try {
               const parsed = JSON.parse(data);
-              updatedData = parsed.updatedData || null;
+              updated_at = parsed.updated_at || null;
             } catch (e) {
-              // JSON 파싱 에러시 updatedData null
+              // JSON 파싱 에러시 updated_at null
             }
           }
-          resolve({ fileName: file, updatedData });
+          resolve({ fileName: file, updated_at });
         });
       });
     });
 
     Promise.all(filePromises).then((filesWithDates) => {
-      // updatedData 기준으로 최신순 정렬 (null인 경우 가장 오래된 것으로 처리)
+      // updated_at 기준으로 최신순 정렬 (null인 경우 가장 오래된 것으로 처리)
       filesWithDates.sort((a, b) => {
-        if (!a.updatedData && !b.updatedData)
+        if (!a.updated_at && !b.updated_at)
           return a.fileName.localeCompare(b.fileName);
-        if (!a.updatedData) return 1;
-        if (!b.updatedData) return -1;
-        return new Date(b.updatedData) - new Date(a.updatedData);
+        if (!a.updated_at) return 1;
+        if (!b.updated_at) return -1;
+        return new Date(b.updated_at) - new Date(a.updated_at);
       });
 
       const sortedFileNames = filesWithDates.map((f) => f.fileName);
@@ -82,12 +82,12 @@ app.post("/api/file", (req, res) => {
 
   const filePath = path.join(fileFolderPath, `${bookName}.txt`);
 
-  // JSON 문자열로 저장 (updatedData 추가)
+  // JSON 문자열로 저장 (updated_at 추가)
   const fileData = JSON.stringify(
     {
       author,
       content: content || [],
-      updatedData: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     },
     null,
     2,
@@ -157,8 +157,8 @@ app.post("/api/file/:filename/memo", (req, res) => {
 
       json.content.push({ memoIndex, memo, page, opinionList });
 
-      // updatedData 추가/업데이트
-      json.updatedData = new Date().toISOString();
+      // updated_at 추가/업데이트
+      json.updated_at = new Date().toISOString();
 
       fs.writeFile(filePath, JSON.stringify(json, null, 2), "utf8", (err) => {
         if (err) return res.status(500).send("파일 저장 중 오류 발생");
@@ -199,8 +199,8 @@ app.put("/api/file/:filename/memo/:index", (req, res) => {
     let parsed = JSON.parse(data);
     parsed.content[index] = { memoIndex, memo, page, opinionList };
 
-    // updatedData 추가/업데이트
-    parsed.updatedData = new Date().toISOString();
+    // updated_at 추가/업데이트
+    parsed.updated_at = new Date().toISOString();
 
     fs.writeFile(filePath, JSON.stringify(parsed, null, 2), "utf8", (err) => {
       if (err) return res.status(500).send("Error saving file");
@@ -238,6 +238,9 @@ app.post("/api/file/:filename/opinion/:index", (req, res) => {
       targetMemo.opinionList.push({
         opinion,
       });
+
+      // updated_at 추가/업데이트
+      json.updated_at = new Date().toISOString();
 
       fs.writeFile(filePath, JSON.stringify(json, null, 2), (err) => {
         if (err) {
@@ -283,6 +286,9 @@ app.put("/api/file/:filename/opinion/:memoIndex/:opinionIndex", (req, res) => {
       }
 
       memo.opinionList[opinionIndex].opinion = opinion;
+
+      // updated_at 추가/업데이트
+      json.updated_at = new Date().toISOString();
 
       fs.writeFile(filePath, JSON.stringify(json, null, 2), (err) => {
         if (err) {
@@ -428,7 +434,7 @@ app.get("/api/search", (req, res) => {
                   if (matchedLines.length > 0) {
                     result.push({
                       fileName: file,
-                      taskName: parsed.topic || file.replace(".txt", ""),
+                      taskName: parsed.title || file.replace(".txt", ""),
                       matches: matchedLines, // 모든 결과 표시
                       folderType: "task",
                     });
@@ -460,36 +466,37 @@ app.get("/api/task", (req, res) => {
     if (err) return res.status(500).send("Error reading directory");
     const txtFiles = tasks.filter((task) => task.endsWith(".txt"));
 
-    // 각 파일의 updatedData를 읽어서 정렬
+    // 각 파일의 updated_at를 읽어서 정렬
     const taskPromises = txtFiles.map((file) => {
       return new Promise((resolve) => {
         const taskPath = path.join(taskFolderPath, file);
         fs.readFile(taskPath, "utf8", (err, data) => {
-          let updatedData = null;
+          let updated_at = null;
           if (!err) {
             try {
               const parsed = JSON.parse(data);
-              updatedData = parsed.updatedData || null;
+              updated_at = parsed.updated_at || null;
             } catch (e) {
-              // JSON 파싱 에러시 updatedData null
+              // JSON 파싱 에러시 updated_at null
             }
           }
-          resolve({ fileName: file, updatedData });
+          resolve({ fileName: file, updated_at });
         });
       });
     });
 
     Promise.all(taskPromises).then((tasksWithDates) => {
-      // updatedData 기준으로 최신순 정렬 (null인 경우 가장 오래된 것으로 처리)
+      // updated_at 기준으로 최신순 정렬 (null인 경우 가장 오래된 것으로 처리)
       tasksWithDates.sort((a, b) => {
-        if (!a.updatedData && !b.updatedData)
+        if (!a.updated_at && !b.updated_at)
           return a.fileName.localeCompare(b.fileName);
-        if (!a.updatedData) return 1;
-        if (!b.updatedData) return -1;
-        return new Date(b.updatedData) - new Date(a.updatedData);
+        if (!a.updated_at) return 1;
+        if (!b.updated_at) return -1;
+        return new Date(b.updated_at) - new Date(a.updated_at);
       });
 
-      const sortedTaskNames = tasksWithDates.map((f) => f.fileName);
+      // .txt 확장자 제거해서 반환
+      const sortedTaskNames = tasksWithDates.map((f) => f.fileName.replace(/\.txt$/, ''));
       res.json(sortedTaskNames);
     });
   });
@@ -497,64 +504,95 @@ app.get("/api/task", (req, res) => {
 
 app.get("/api/task/:taskname", (req, res) => {
   const { taskname } = req.params;
-  const taskPath = path.join(taskFolderPath, taskname);
+  const taskPath = path.join(taskFolderPath, `${taskname}.txt`);
   if (!taskPath.startsWith(taskFolderPath)) {
-    return res.status(400).send("Invalid file path");
+    return res.status(400).json({ error: "Invalid file path" });
   }
   fs.readFile(taskPath, "utf8", (err, data) => {
-    if (err) return res.status(404).send("File not found");
-    res.send(data);
+    if (err) return res.status(404).json({ error: "File not found" });
+    try {
+      res.json(JSON.parse(data));
+    } catch (e) {
+      res.status(500).json({ error: "Invalid JSON format" });
+    }
   });
 });
 
 app.put("/api/task/:taskname", (req, res) => {
   const { taskname } = req.params;
-  const { topic, content } = req.body;
+  const { title, content } = req.body;
 
-  if (!topic || !content) {
-    return res.status(400).send("Both topic and content are required.");
+  if (!title) {
+    return res.status(400).json({ error: "title is required." });
   }
 
-  const taskPath = path.join(taskFolderPath, taskname);
+  const taskPath = path.join(taskFolderPath, `${taskname}.txt`);
   if (!taskPath.startsWith(taskFolderPath)) {
-    return res.status(400).send("Invalid file path");
+    return res.status(400).json({ error: "Invalid file path" });
   }
 
-  // updatedData 추가
-  const fileContent = JSON.stringify(
-    {
-      topic,
-      content,
-      updatedData: new Date().toISOString(),
-    },
-    null,
-    2,
-  );
-
-  fs.writeFile(taskPath, fileContent, "utf8", (err) => {
-    if (err) {
-      console.error("파일 저장 실패:", err);
-      return res.status(500).send("Failed to save file.");
+  // 기존 파일 읽기
+  fs.readFile(taskPath, "utf8", (err, data) => {
+    if (err && err.code !== "ENOENT") {
+      return res.status(500).json({ error: "Failed to read file." });
     }
-    res.status(200).send("File updated successfully.");
+
+    let existingData = {};
+    if (!err) {
+      try {
+        existingData = JSON.parse(data);
+      } catch (e) {
+        existingData = {};
+      }
+    }
+
+    // 기존 데이터 유지 + 새 데이터 병합
+    const fileContent = JSON.stringify(
+      {
+        title: title || existingData.title || "",
+        subtitle: existingData.subtitle || "",
+        keywords: existingData.keywords || "",
+        content: content !== undefined ? content : (existingData.content || ""),
+        created_at: existingData.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        position_x: existingData.position_x || 0,
+        position_y: existingData.position_y || 0,
+      },
+      null,
+      2,
+    );
+
+    fs.writeFile(taskPath, fileContent, "utf8", (err) => {
+      if (err) {
+        console.error("파일 저장 실패:", err);
+        return res.status(500).json({ error: "Failed to save file." });
+      }
+      res.status(200).json({ message: "File updated successfully." });
+    });
   });
 });
 
 app.post("/api/task", (req, res) => {
-  const { topic, content } = req.body;
+  const { title, content } = req.body;
 
-  if (!topic) {
-    return res.status(400).send("topic은은 필수입니다.");
+  if (!title) {
+    return res.status(400).json({ error: "title은 필수입니다." });
   }
 
-  const taskPath = path.join(taskFolderPath, `${topic}.txt`);
+  const taskPath = path.join(taskFolderPath, `${title}.txt`);
+  const now = new Date().toISOString();
 
-  // JSON 문자열로 저장 (updatedData 추가)
+  // JSON 문자열로 저장 (모든 필드 포함)
   const fileData = JSON.stringify(
     {
-      topic,
+      title,
+      subtitle: "",
+      keywords: "",
       content: content || "",
-      updatedData: new Date().toISOString(),
+      created_at: now,
+      updated_at: now,
+      position_x: 0,
+      position_y: 0,
     },
     null,
     2,
@@ -563,16 +601,17 @@ app.post("/api/task", (req, res) => {
   fs.writeFile(taskPath, fileData, "utf8", (err) => {
     if (err) {
       console.error(err);
-      return res.status(500).send("파일 저장 중 오류 발생");
+      return res.status(500).json({ error: "파일 저장 중 오류 발생" });
     }
-    res.status(201).send("파일 저장 완료");
+    res.status(201).json({ message: "파일 저장 완료" });
   });
 });
 
 // Google Drive 업로드 API
 app.post("/api/upload-file/:filename", async (req, res) => {
   try {
-    const { filename } = req.params;
+    let { filename } = req.params;
+    filename = decodeURIComponent(filename); // URL 디코딩
     const { folderType } = req.body; // 클라이언트에서 지정한 폴더 타입
     let filePath;
 
@@ -580,7 +619,7 @@ app.post("/api/upload-file/:filename", async (req, res) => {
     if (folderType === "file") {
       filePath = path.join(fileFolderPath, filename);
     } else if (folderType === "task") {
-      filePath = path.join(taskFolderPath, filename);
+      filePath = path.join(taskFolderPath, `${filename}.txt`);
     } else {
       return res
         .status(400)

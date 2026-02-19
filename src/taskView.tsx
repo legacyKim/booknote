@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, ChangeEvent } from "react";
 import { useParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import DownloadPopup from "./DownloadPopup";
+import EditorToolbar from "./EditorToolbar";
 
 export type tTaskName = {
   searchOn: boolean;
@@ -15,9 +16,10 @@ export type tTaskName = {
 };
 
 export type tFileContent = {
-  topic: string;
+  title: string;
+  keywords?: string;
   content: string;
-  updatedData?: string;
+  updated_at?: string;
 };
 
 export default function TaskView({
@@ -38,8 +40,10 @@ export default function TaskView({
   console.log(jsonData);
 
   useEffect(() => {
+    if (!taskname) return;
+
     if (taskname !== tasknameInView || newJsonData) {
-      fetch(`http://localhost:3001/api/task/${taskname}`)
+      fetch(`http://localhost:3001/api/task/${encodeURIComponent(taskname)}`)
         .then((res) => res.json())
         .then((data) => {
           setJsonData(data);
@@ -53,26 +57,38 @@ export default function TaskView({
 
     // 이전 목록 확인
     setTasknameInView(taskname);
-  }, [taskname, newJsonData, jsonData]);
+  }, [taskname, newJsonData]);
 
-  const topicRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!jsonData) return;
+    if (titleRef.current) {
+      titleRef.current.innerText = jsonData.title || "";
+    }
+    if (contentRef.current) {
+      contentRef.current.innerHTML = jsonData.content || "";
+    }
+  }, [jsonData]);
+
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  const [isEditorFocused, setIsEditorFocused] = useState(false);
 
   const save = async () => {
-    const topic = topicRef.current?.innerText || "";
+    const title = titleRef.current?.innerText || "";
     const content = contentRef.current?.innerHTML || "";
 
-    const res = await fetch(`http://localhost:3001/api/task/${taskname}`, {
+    const res = await fetch(`http://localhost:3001/api/task/${encodeURIComponent(taskname || "")}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        topic: topic,
+        title: title,
         content: content,
       }),
     });
     if (!res.ok) throw new Error("수정 실패");
 
-    const updated = await fetch(`http://localhost:3001/api/task/${taskname}`);
+    const updated = await fetch(`http://localhost:3001/api/task/${encodeURIComponent(taskname || "")}`);
     const data = await updated.json();
     setJsonData(data);
   };
@@ -83,7 +99,7 @@ export default function TaskView({
       return;
     }
 
-    const filename = taskname;
+    const filename = encodeURIComponent(taskname);
 
     try {
       const response = await fetch(
@@ -110,31 +126,55 @@ export default function TaskView({
 
   return (
     <div className="content">
-      <div className="topic size_876">
-        <h4 contentEditable="true" ref={topicRef}>
-          {jsonData?.topic}
-        </h4>
+      <div className="title size_876">
+        <h4
+          contentEditable="true"
+          ref={titleRef}
+        ></h4>
+        {jsonData?.keywords && (
+          <div className="keywords">
+            {jsonData.keywords
+              .split(",")
+              .map((keyword) => keyword.trim())
+              .filter(Boolean)
+              .map((keyword, index) => (
+                <span key={`${keyword}-${index}`}>{keyword}</span>
+              ))}
+          </div>
+        )}
       </div>
       <span className="updated-data size_876">
-        {jsonData?.updatedData && (
+        {jsonData?.updated_at && (
           <>
             마지막 수정일:{" "}
-            {new Date(jsonData.updatedData).toLocaleDateString("ko-KR", {
+            {new Date(jsonData.updated_at).toLocaleDateString("ko-KR", {
               year: "numeric",
               month: "long",
               day: "numeric",
             })}{" "}
-            {new Date(jsonData.updatedData).toLocaleTimeString("ko-KR", {
+            {new Date(jsonData.updated_at).toLocaleTimeString("ko-KR", {
               hour: "2-digit",
               minute: "2-digit",
             })}
           </>
         )}
       </span>
-      <div className="task_content size_876">
+      {isEditorFocused && <EditorToolbar targetRef={contentRef} />}
+
+      <div
+        className="task_content size_876"
+        ref={editorContainerRef}
+        onFocusCapture={() => setIsEditorFocused(true)}
+        onBlurCapture={(event) => {
+          const nextTarget = event.relatedTarget as Node | null;
+          if (nextTarget && editorContainerRef.current?.contains(nextTarget)) {
+            return;
+          }
+          setIsEditorFocused(false);
+        }}
+      >
         <div
           contentEditable="true"
-          dangerouslySetInnerHTML={{ __html: jsonData?.content || "" }}
           ref={contentRef}
         ></div>
       </div>
