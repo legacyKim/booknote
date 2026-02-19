@@ -25,20 +25,45 @@ export default function SearchResult({
       {searchResult.map((file, idx) => (
         <div key={idx} className="search_result_box size_876">
           <div className="title">
-            <h2 className="bookname">{file.fileName.replace(/\.txt$/, "")}</h2>
-            <h4 className="author">{file.author}</h4>
+            <h2 className="bookname">
+              {file.folderType === "file"
+                ? file.fileName.replace(/\.txt$/, "")
+                : file.taskName || file.fileName.replace(/\.txt$/, "")}
+            </h2>
+            {file.folderType === "file" && (
+              <h4 className="author">{file.author}</h4>
+            )}
           </div>
           <ul className="search_result_list">
             {file.matches.map((item: any, i: number) => (
-              <li key={i}>
+              <li
+                key={i}
+                className={file.folderType === "task" ? "task_memo" : ""}
+              >
                 <Link
-                  to={`/file/${file.fileName}`}
+                  to={`/${file.folderType}/${file.fileName}`}
                   onClick={() => {
-                    setSerachResMemo(item.memo);
+                    if (file.folderType === "file") {
+                      setSerachResMemo(item.memo);
+                    }
                   }}
                 >
-                  <p className="memo">{item.memo}</p>
-                  <span className="page">{item.page}p</span>
+                  {file.folderType === "file" ? (
+                    <>
+                      <p className="memo">{item.memo}</p>
+                      <span className="page">{item.page}p</span>
+                    </>
+                  ) : (
+                    <>
+                      <p
+                        contentEditable="true"
+                        dangerouslySetInnerHTML={{ __html: item.line }}
+                      />
+                      <span className="line_number">
+                        Line {item.lineNumber}
+                      </span>
+                    </>
+                  )}
                 </Link>
               </li>
             ))}

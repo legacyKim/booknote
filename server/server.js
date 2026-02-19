@@ -19,12 +19,44 @@ app.use(express.json());
 const fileFolderPath = path.join(__dirname, "file");
 const taskFolderPath = path.join(__dirname, "task");
 
-// 파일 목록 API
+// 파일 목록 API (최신 업데이트 순으로 정렬)
 app.get("/api/files", (req, res) => {
   fs.readdir(fileFolderPath, (err, files) => {
     if (err) return res.status(500).send("Error reading directory");
     const txtFiles = files.filter((file) => file.endsWith(".txt"));
-    res.json(txtFiles);
+
+    // 각 파일의 updatedData를 읽어서 정렬
+    const filePromises = txtFiles.map((file) => {
+      return new Promise((resolve) => {
+        const filePath = path.join(fileFolderPath, file);
+        fs.readFile(filePath, "utf8", (err, data) => {
+          let updatedData = null;
+          if (!err) {
+            try {
+              const parsed = JSON.parse(data);
+              updatedData = parsed.updatedData || null;
+            } catch (e) {
+              // JSON 파싱 에러시 updatedData null
+            }
+          }
+          resolve({ fileName: file, updatedData });
+        });
+      });
+    });
+
+    Promise.all(filePromises).then((filesWithDates) => {
+      // updatedData 기준으로 최신순 정렬 (null인 경우 가장 오래된 것으로 처리)
+      filesWithDates.sort((a, b) => {
+        if (!a.updatedData && !b.updatedData)
+          return a.fileName.localeCompare(b.fileName);
+        if (!a.updatedData) return 1;
+        if (!b.updatedData) return -1;
+        return new Date(b.updatedData) - new Date(a.updatedData);
+      });
+
+      const sortedFileNames = filesWithDates.map((f) => f.fileName);
+      res.json(sortedFileNames);
+    });
   });
 });
 
@@ -50,8 +82,16 @@ app.post("/api/file", (req, res) => {
 
   const filePath = path.join(fileFolderPath, `${bookName}.txt`);
 
-  // JSON 문자열로 저장
-  const fileData = JSON.stringify({ author, content }, null, 2);
+  // JSON 문자열로 저장 (updatedData 추가)
+  const fileData = JSON.stringify(
+    {
+      author,
+      content: content || [],
+      updatedData: new Date().toISOString(),
+    },
+    null,
+    2,
+  );
 
   fs.writeFile(filePath, fileData, "utf8", (err) => {
     if (err) {
@@ -117,6 +157,9 @@ app.post("/api/file/:filename/memo", (req, res) => {
 
       json.content.push({ memoIndex, memo, page, opinionList });
 
+      // updatedData 추가/업데이트
+      json.updatedData = new Date().toISOString();
+
       fs.writeFile(filePath, JSON.stringify(json, null, 2), "utf8", (err) => {
         if (err) return res.status(500).send("파일 저장 중 오류 발생");
         res.status(200).send("메모 추가 완료");
@@ -155,6 +198,9 @@ app.put("/api/file/:filename/memo/:index", (req, res) => {
 
     let parsed = JSON.parse(data);
     parsed.content[index] = { memoIndex, memo, page, opinionList };
+
+    // updatedData 추가/업데이트
+    parsed.updatedData = new Date().toISOString();
 
     fs.writeFile(filePath, JSON.stringify(parsed, null, 2), "utf8", (err) => {
       if (err) return res.status(500).send("Error saving file");
@@ -302,55 +348,150 @@ app.delete(
 
 app.get("/api/search", (req, res) => {
   const { q } = req.query;
+  console.log("검색어:", q);
   if (!q) return res.status(400).send("검색어가 필요합니다.");
 
-  fs.readdir(fileFolderPath, (err, files) => {
-    if (err) return res.status(500).send("폴더를 읽을 수 없습니다.");
+  const result = [];
 
-    const txtFiles = files.filter((f) => f.endsWith(".txt"));
-    const result = [];
+  // file 폴더와 task 폴더를 모두 검색
+  const searchFolders = [
+    { path: fileFolderPath, type: "file" },
+    { path: taskFolderPath, type: "task" },
+  ];
 
-    let remaining = txtFiles.length;
-    if (remaining === 0) return res.status(200).json({ result: [] });
+  let completedFolders = 0;
 
-    txtFiles.forEach((file) => {
-      const filePath = path.join(fileFolderPath, file);
-      fs.readFile(filePath, "utf8", (err, data) => {
-        if (!err) {
-          try {
-            const parsed = JSON.parse(data);
-            const matched = parsed.content?.filter((item) =>
-              item.memo.includes(q),
-            );
+  searchFolders.forEach(({ path: folderPath, type: folderType }) => {
+    console.log(`${folderType} 폴더 검색 시작:`, folderPath);
+    fs.readdir(folderPath, (err, files) => {
+      if (err) {
+        console.error(`${folderType} 폴더 읽기 오류:`, err);
+        completedFolders++;
+        if (completedFolders === searchFolders.length) {
+          res.status(200).json({ result }); // 전체 결과 표시
+        }
+        return;
+      }
 
-            if (matched?.length > 0) {
-              result.push({
-                fileName: file,
-                bookName: parsed.bookName,
-                author: parsed.author,
-                matches: matched,
-              });
+      const txtFiles = files.filter((f) => f.endsWith(".txt"));
+      console.log(`${folderType} txt 파일들:`, txtFiles);
+      let remaining = txtFiles.length;
+
+      if (remaining === 0) {
+        completedFolders++;
+        if (completedFolders === searchFolders.length) {
+          res.status(200).json({ result }); // 전체 결과 표시
+        }
+        return;
+      }
+
+      txtFiles.forEach((file) => {
+        const filePath = path.join(folderPath, file);
+        fs.readFile(filePath, "utf8", (err, data) => {
+          if (!err) {
+            try {
+              if (folderType === "file") {
+                // file 폴더: JSON 구조로 파싱
+                const parsed = JSON.parse(data);
+                const matched = parsed.content?.filter((item) =>
+                  item.memo.includes(q),
+                );
+                console.log(`file ${file} 매치 결과:`, matched?.length || 0);
+
+                if (matched?.length > 0) {
+                  result.push({
+                    fileName: file,
+                    bookName: parsed.bookName || file.replace(".txt", ""),
+                    author: parsed.author,
+                    matches: matched, // 모든 결과 표시
+                    folderType: "file",
+                  });
+                }
+              } else if (folderType === "task") {
+                // task 폴더: 플레인 텍스트에서 검색
+                const parsed = JSON.parse(data);
+                if (parsed.content && parsed.content.includes(q)) {
+                  // 검색어가 포함된 줄들을 찾기
+                  const lines = parsed.content.split("\n");
+                  const matchedLines = lines
+                    .map((line, index) => ({
+                      line: line.trim(),
+                      lineNumber: index + 1,
+                    }))
+                    .filter(({ line }) => line.includes(q) && line.length > 0);
+
+                  console.log(
+                    `task ${file} 매치 결과:`,
+                    matchedLines?.length || 0,
+                  );
+
+                  if (matchedLines.length > 0) {
+                    result.push({
+                      fileName: file,
+                      taskName: parsed.topic || file.replace(".txt", ""),
+                      matches: matchedLines, // 모든 결과 표시
+                      folderType: "task",
+                    });
+                  }
+                }
+              }
+            } catch (e) {
+              console.error(`${file} 파싱 오류:`, e);
             }
-          } catch (e) {
-            console.error(`${file} 파싱 오류:`, e);
           }
-        }
 
-        remaining--;
-        if (remaining === 0) {
-          res.status(200).json({ result });
-        }
+          remaining--;
+          if (remaining === 0) {
+            completedFolders++;
+            if (completedFolders === searchFolders.length) {
+              console.log("최종 결과 개수:", result.length);
+              res.status(200).json({ result }); // 전체 결과 표시
+            }
+          }
+        });
       });
     });
   });
 });
 
-// 작업 목록 API
+// 작업 목록 API (최신 업데이트 순으로 정렬)
 app.get("/api/task", (req, res) => {
   fs.readdir(taskFolderPath, (err, tasks) => {
     if (err) return res.status(500).send("Error reading directory");
     const txtFiles = tasks.filter((task) => task.endsWith(".txt"));
-    res.json(txtFiles);
+
+    // 각 파일의 updatedData를 읽어서 정렬
+    const taskPromises = txtFiles.map((file) => {
+      return new Promise((resolve) => {
+        const taskPath = path.join(taskFolderPath, file);
+        fs.readFile(taskPath, "utf8", (err, data) => {
+          let updatedData = null;
+          if (!err) {
+            try {
+              const parsed = JSON.parse(data);
+              updatedData = parsed.updatedData || null;
+            } catch (e) {
+              // JSON 파싱 에러시 updatedData null
+            }
+          }
+          resolve({ fileName: file, updatedData });
+        });
+      });
+    });
+
+    Promise.all(taskPromises).then((tasksWithDates) => {
+      // updatedData 기준으로 최신순 정렬 (null인 경우 가장 오래된 것으로 처리)
+      tasksWithDates.sort((a, b) => {
+        if (!a.updatedData && !b.updatedData)
+          return a.fileName.localeCompare(b.fileName);
+        if (!a.updatedData) return 1;
+        if (!b.updatedData) return -1;
+        return new Date(b.updatedData) - new Date(a.updatedData);
+      });
+
+      const sortedTaskNames = tasksWithDates.map((f) => f.fileName);
+      res.json(sortedTaskNames);
+    });
   });
 });
 
@@ -379,7 +520,16 @@ app.put("/api/task/:taskname", (req, res) => {
     return res.status(400).send("Invalid file path");
   }
 
-  const fileContent = JSON.stringify({ topic, content }, null, 2); // 예쁘게 저장
+  // updatedData 추가
+  const fileContent = JSON.stringify(
+    {
+      topic,
+      content,
+      updatedData: new Date().toISOString(),
+    },
+    null,
+    2,
+  );
 
   fs.writeFile(taskPath, fileContent, "utf8", (err) => {
     if (err) {
@@ -399,8 +549,16 @@ app.post("/api/task", (req, res) => {
 
   const taskPath = path.join(taskFolderPath, `${topic}.txt`);
 
-  // JSON 문자열로 저장
-  const fileData = JSON.stringify({ content }, null, 2);
+  // JSON 문자열로 저장 (updatedData 추가)
+  const fileData = JSON.stringify(
+    {
+      topic,
+      content: content || "",
+      updatedData: new Date().toISOString(),
+    },
+    null,
+    2,
+  );
 
   fs.writeFile(taskPath, fileData, "utf8", (err) => {
     if (err) {

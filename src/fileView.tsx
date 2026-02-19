@@ -25,6 +25,7 @@ export type Memo = {
 export type tFileContent = {
   author: string;
   content: Memo[];
+  updatedData?: string;
 };
 
 export default function FileView({
@@ -75,6 +76,23 @@ export default function FileView({
 
     setEditIndex(null);
   }, [filename, newJsonData, jsonData]);
+
+  // 검색 결과 메모로 스크롤
+  useEffect(() => {
+    if (searchResMemo && jsonData?.content) {
+      const timer = setTimeout(() => {
+        const activeElement = document.querySelector(".memo_list_box .active");
+        if (activeElement) {
+          activeElement.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }, 100); // 렌더링 완료 후 스크롤
+
+      return () => clearTimeout(timer);
+    }
+  }, [searchResMemo, jsonData]);
 
   const [memo, setMemo] = useState("");
   const [page, setPage] = useState("");
@@ -733,6 +751,23 @@ export default function FileView({
           ></button>
         </div>
       </div>
+
+      <span className="updated-data size_876">
+        {jsonData?.updatedData && (
+          <>
+            마지막 수정일:{" "}
+            {new Date(jsonData.updatedData).toLocaleDateString("ko-KR", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}{" "}
+            {new Date(jsonData.updatedData).toLocaleTimeString("ko-KR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </>
+        )}
+      </span>
 
       <div className={`${searchOn ? "searchOn" : ""} memo_list_box`}>
         <ul

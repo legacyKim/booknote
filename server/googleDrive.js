@@ -105,9 +105,22 @@ async function getTokenFromCode(authCode) {
   try {
     const { tokens } = await oAuth2Client.getToken(authCode);
 
+    console.log("받은 토큰 정보:", JSON.stringify(tokens, null, 2));
+
+    if (!tokens.refresh_token) {
+      console.warn(
+        "⚠️  refresh_token이 없습니다. 이미 인증된 계정일 수 있습니다.",
+      );
+      throw new Error(
+        "refresh_token이 발급되지 않았습니다. Google에서 앱 권한을 해제하고 다시 시도하세요: https://myaccount.google.com/permissions",
+      );
+    }
+
     // credentials.json에 refresh_token 추가
     credentials.refresh_token = tokens.refresh_token;
     fs.writeFileSync(CREDENTIALS_PATH, JSON.stringify(credentials, null, 2));
+
+    console.log("✅ refresh_token이 성공적으로 저장되었습니다!");
 
     return tokens;
   } catch (error) {
