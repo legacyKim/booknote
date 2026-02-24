@@ -41,7 +41,7 @@ export default function SearchResult({
                 className={file.folderType === "task" ? "task_memo" : ""}
               >
                 <Link
-                  to={`/${file.folderType}/${file.fileName}`}
+                  to={`/${file.folderType}/${file.folderType === "task" ? file.fileName.replace(/\.txt$/, "") : file.fileName}`}
                   onClick={() => {
                     if (file.folderType === "file") {
                       setSerachResMemo(item.memo);
