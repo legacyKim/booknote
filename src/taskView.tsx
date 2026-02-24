@@ -176,6 +176,26 @@ export default function TaskView({
         <div
           contentEditable="true"
           ref={contentRef}
+          onPaste={(e) => {
+            e.preventDefault();
+            const html = e.clipboardData.getData("text/html");
+            const text = e.clipboardData.getData("text/plain");
+
+            if (html) {
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(html, "text/html");
+              doc.querySelectorAll("[style]").forEach((el) => {
+                el.removeAttribute("style");
+              });
+              doc.querySelectorAll("[class]").forEach((el) => {
+                el.removeAttribute("class");
+              });
+              const cleaned = doc.body.innerHTML;
+              document.execCommand("insertHTML", false, cleaned);
+            } else {
+              document.execCommand("insertText", false, text);
+            }
+          }}
         ></div>
       </div>
 

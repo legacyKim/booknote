@@ -538,6 +538,29 @@ main.off {
   height: 100%;
 }
 
+.task_content ul,
+.task_content ol {
+  padding-left: 1.5em;
+  margin: 0.4em 0;
+}
+
+.task_content ul li {
+  list-style: disc;
+}
+
+.task_content ol li {
+  list-style: decimal;
+}
+
+.task_content p,
+.task_content p *,
+.task_content span,
+.task_content span[style] {
+  background-color: transparent !important;
+  color: var(--font-color) !important;
+  caret-color: var(--main-color) !important;
+}
+
 /* content */
 
 .content {
