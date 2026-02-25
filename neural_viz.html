@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 학습 원리 시각화</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&family=Noto+Sans+KR:wght@300;400;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --panel: #0f0f1a;
+    --border: #1e1e3a;
+    --accent: #00ff88;
+    --accent2: #ff3366;
+    --accent3: #3366ff;
+    --accent4: #ffaa00;
+    --text: #c8c8e0;
+    --text-dim: #555577;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .header {
+    padding: 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .header h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+
+  .header p {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    gap: 0;
+    overflow-x: auto;
+  }
+
+  .tab {
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .content {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  @media (max-width: 768px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.5rem;
+  }
+
+  .panel h2 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+  }
+
+  .panel p {
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: var(--text);
+    margin-bottom: 0.8rem;
+  }
+
+  canvas {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #060610;
+  }
+
+  .controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+  }
+
+  button {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+
+  button:hover {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  button.danger {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+
+  button.danger:hover {
+    background: var(--accent2);
+    color: white;
+  }
+
+  .code-block {
+    background: #060610;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    margin-top: 1rem;
+  }
+
+  .kw { color: #ff3366; }
+  .fn { color: #00ff88; }
+  .num { color: #ffaa00; }
+  .cm { color: #444466; }
+  .str { color: #3399ff; }
+
+  .slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .slider-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .slider-row label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    width: 120px;
+    flex-shrink: 0;
+  }
+
+  .slider-row input[type=range] {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+
+  .slider-row span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent);
+    width: 40px;
+    text-align: right;
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+  }
+
+  .stat-row span:first-child { color: var(--text-dim); }
+  .stat-row span:last-child { color: var(--accent); }
+
+  .attention-grid {
+    display: grid;
+    gap: 2px;
+    margin-top: 1rem;
+  }
+
+  .attention-cell {
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: rgba(255,255,255,0.8);
+    transition: all 0.3s;
+  }
+
+  .token-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .token {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .token:hover, .token.selected {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,255,136,0.05);
+  }
+
+  .loss-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2rem;
+    color: var(--accent);
+    text-align: center;
+    padding: 1rem;
+  }
+
+  .epoch-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>// AI 학습 원리 시각화</h1>
+    <p>퍼셉트론 → 역전파 → 어텐션 → 트랜스포머</p>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('perceptron')">01. 퍼셉트론</button>
+  <button class="tab" onclick="showTab('backprop')">02. 역전파</button>
+  <button class="tab" onclick="showTab('attention')">03. 어텐션</button>
+  <button class="tab" onclick="showTab('transformer')">04. 트랜스포머</button>
+</div>
+
+<div class="content">
+
+  <!-- 1. 퍼셉트론 -->
+  <div id="perceptron" class="section active">
+    <div class="grid-2">
+      <div>
+        <div class="panel">
+          <h2>// 퍼셉트론 - 뉴런의 수학적 모델</h2>
+          <p>입력값 × 가중치를 합산해서 역치를 넘으면 발화(1), 아니면 침묵(0). 뉴런의 발화 원리를 그대로 수식으로 표현한 겁니다.</p>
+          <p>가중치(w)가 시냅스 강도, 입력(x)이 자극, 역치(θ)가 발화 임계값입니다.</p>
+        </div>
+
+        <div class="panel" style="margin-top:1rem">
+          <h2>// 가중치 조정</h2>
+          <div class="slider-group">
+            <div class="slider-row">
+              <label>입력 x₁</label>
+              <input type="range" min="0" max="1" step="0.1" value="0.8" id="x1" oninput="updatePerceptron()">
+              <span id="x1v">0.8</span>
+            </div>
+            <div class="slider-row">
+              <label>입력 x₂</label>
+              <input type="range" min="0" max="1" step="0.1" value="0.6" id="x2" oninput="updatePerceptron()">
+              <span id="x2v">0.6</span>
+            </div>
+            <div class="slider-row">
+              <label>가중치 w₁</label>
+              <input type="range" min="-1" max="1" step="0.1" value="0.5" id="w1" oninput="updatePerceptron()">
+              <span id="w1v">0.5</span>
+            </div>
+            <div class="slider-row">
+              <label>가중치 w₂</label>
+              <input type="range" min="-1" max="1" step="0.1" value="0.5" id="w2" oninput="updatePerceptron()">
+              <span id="w2v">0.5</span>
+            </div>
+            <div class="slider-row">
+              <label>역치 θ</label>
+              <input type="range" min="0" max="1" step="0.1" value="0.5" id="theta" oninput="updatePerceptron()">
+              <span id="thetav">0.5</span>
+            </div>
+          </div>
+
+          <div style="margin-top:1rem">
+            <div class="stat-row"><span>가중합 (x₁w₁ + x₂w₂)</span><span id="weighted_sum">-</span></div>
+            <div class="stat-row"><span>역치 θ</span><span id="threshold_val">-</span></div>
+            <div class="stat-row"><span>출력 (발화 여부)</span><span id="output_val">-</span></div>
+          </div>
+        </div>
+
+        <div class="code-block">
+<span class="cm"># 퍼셉트론</span>
+<span class="kw">def</span> <span class="fn">perceptron</span>(x, w, theta):
+    weighted_sum = <span class="fn">sum</span>(xi * wi <span class="kw">for</span> xi, wi <span class="kw">in</span> <span class="fn">zip</span>(x, w))
+    <span class="kw">return</span> <span class="num">1</span> <span class="kw">if</span> weighted_sum >= theta <span class="kw">else</span> <span class="num">0</span>
+
+x = [<span class="num">0.8</span>, <span class="num">0.6</span>]  <span class="cm"># 입력 (자극)</span>
+w = [<span class="num">0.5</span>, <span class="num">0.5</span>]  <span class="cm"># 가중치 (시냅스 강도)</span>
+theta = <span class="num">0.5</span>    <span class="cm"># 역치</span>
+
+output = <span class="fn">perceptron</span>(x, w, theta)
+<span class="cm"># 0.8×0.5 + 0.6×0.5 = 0.7 >= 0.5 → 발화!</span>
+        </div>
+      </div>
+
+      <div>
+        <canvas id="perceptronCanvas" height="400"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 역전파 -->
+  <div id="backprop" class="section">
+    <div class="grid-2">
+      <div>
+        <div class="panel">
+          <h2>// 역전파 + 경사하강법</h2>
+          <p>AND 게이트를 학습시킵니다. 오차를 역방향으로 전파해서 가중치를 조정합니다. 학습률이 보폭입니다.</p>
+          <p>실행 버튼을 누르면 신경망이 스스로 AND 함수를 배웁니다.</p>
+        </div>
+
+        <div class="panel" style="margin-top:1rem">
+          <h2>// 학습 파라미터</h2>
+          <div class="slider-group">
+            <div class="slider-row">
+              <label>학습률 (lr)</label>
+              <input type="range" min="0.01" max="1" step="0.01" value="0.1" id="lr" oninput="document.getElementById('lrv').textContent=this.value">
+              <span id="lrv">0.1</span>
+            </div>
+          </div>
+
+          <div style="margin-top:1rem">
+            <div class="loss-display" id="lossDisplay">1.000</div>
+            <div class="epoch-display" id="epochDisplay">epoch: 0</div>
+          </div>
+
+          <div style="margin-top:1rem">
+            <div class="stat-row"><span>w₁</span><span id="bw1">0.00</span></div>
+            <div class="stat-row"><span>w₂</span><span id="bw2">0.00</span></div>
+            <div class="stat-row"><span>bias</span><span id="bbias">0.00</span></div>
+          </div>
+
+          <div class="controls">
+            <button onclick="trainStep()">한 스텝</button>
+            <button onclick="trainMany()">100 스텝</button>
+            <button class="danger" onclick="resetBackprop()">리셋</button>
+          </div>
+        </div>
+
+        <div class="code-block">
+<span class="cm"># 역전파 (단순화)</span>
+<span class="kw">def</span> <span class="fn">sigmoid</span>(x): <span class="kw">return</span> <span class="num">1</span>/(<span class="num">1</span>+exp(-x))
+
+<span class="cm"># 순전파</span>
+output = <span class="fn">sigmoid</span>(w1*x1 + w2*x2 + bias)
+
+<span class="cm"># 오차</span>
+error = target - output
+
+<span class="cm"># 역전파 (가중치 조정)</span>
+delta = error * output * (<span class="num">1</span> - output)
+w1 += lr * delta * x1
+w2 += lr * delta * x2
+bias += lr * delta
+        </div>
+      </div>
+
+      <div>
+        <canvas id="backpropCanvas" height="400"></canvas>
+        <div style="margin-top:1rem">
+          <canvas id="lossCanvas" height="150"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 어텐션 -->
+  <div id="attention" class="section">
+    <div class="grid-2">
+      <div>
+        <div class="panel">
+          <h2>// 어텐션 메커니즘</h2>
+          <p>토큰을 선택하면 해당 단어가 나머지 단어들과 얼마나 관련 있는지 어텐션 점수로 보여줍니다.</p>
+          <p>"배"를 클릭하면 어떤 단어와 강하게 연결되는지 확인해보세요.</p>
+        </div>
+
+        <div class="panel" style="margin-top:1rem">
+          <h2>// 문장 선택</h2>
+          <div style="margin-bottom:1rem">
+            <button onclick="setSentence(0)" id="sent0" style="margin-bottom:0.3rem">나는 배가 고파서 배를 먹었다</button><br>
+            <button onclick="setSentence(1)" id="sent1">신경망은 뉴런을 모방한 수학 모델이다</button>
+          </div>
+
+          <h2 style="margin-top:1rem">// 토큰 선택</h2>
+          <div class="token-row" id="tokenRow"></div>
+
+          <div id="attentionScores" style="margin-top:0.5rem"></div>
+        </div>
+
+        <div class="code-block">
+<span class="cm"># 어텐션 (단순화)</span>
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="kw">def</span> <span class="fn">attention</span>(Q, K, V):
+    d_k = Q.shape[-<span class="num">1</span>]
+    <span class="cm"># Query × Key 유사도</span>
+    scores = Q @ K.T / np.<span class="fn">sqrt</span>(d_k)
+    <span class="cm"># Softmax → 확률로 변환</span>
+    weights = np.<span class="fn">softmax</span>(scores)
+    <span class="cm"># 가중합</span>
+    <span class="kw">return</span> weights @ V
+        </div>
+      </div>
+
+      <div>
+        <canvas id="attentionCanvas" height="500"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 트랜스포머 -->
+  <div id="transformer" class="section">
+    <div class="grid-2">
+      <div>
+        <div class="panel">
+          <h2>// 트랜스포머 구조</h2>
+          <p>입력 토큰이 임베딩 → 멀티헤드 어텐션 → FFN → 출력 확률로 변환되는 과정입니다.</p>
+          <p>각 레이어를 클릭하면 해당 단계의 설명을 볼 수 있습니다.</p>
+        </div>
+
+        <div class="panel" style="margin-top:1rem" id="transformerInfo">
+          <h2>// 레이어 설명</h2>
+          <p id="layerDesc">레이어를 클릭하세요.</p>
+        </div>
+
+        <div class="code-block">
+<span class="cm"># 트랜스포머 블록</span>
+<span class="kw">class</span> <span class="fn">TransformerBlock</span>:
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+        <span class="cm"># 1. 멀티헤드 어텐션</span>
+        attn = self.<span class="fn">multi_head_attention</span>(x)
+        x = <span class="fn">layer_norm</span>(x + attn)  <span class="cm"># 잔차연결</span>
+
+        <span class="cm"># 2. 피드포워드</span>
+        ffn = self.<span class="fn">feed_forward</span>(x)
+        x = <span class="fn">layer_norm</span>(x + ffn)   <span class="cm"># 잔차연결</span>
+
+        <span class="kw">return</span> x
+
+<span class="cm"># GPT = 트랜스포머 블록 × N개 쌓기</span>
+        </div>
+      </div>
+
+      <div>
+        <canvas id="transformerCanvas" height="550"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===== TAB =====
+function showTab(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ===== 1. PERCEPTRON =====
+function updatePerceptron() {
+  const x1 = +document.getElementById('x1').value;
+  const x2 = +document.getElementById('x2').value;
+  const w1 = +document.getElementById('w1').value;
+  const w2 = +document.getElementById('w2').value;
+  const theta = +document.getElementById('theta').value;
+
+  document.getElementById('x1v').textContent = x1.toFixed(1);
+  document.getElementById('x2v').textContent = x2.toFixed(1);
+  document.getElementById('w1v').textContent = w1.toFixed(1);
+  document.getElementById('w2v').textContent = w2.toFixed(1);
+  document.getElementById('thetav').textContent = theta.toFixed(1);
+
+  const ws = x1*w1 + x2*w2;
+  const out = ws >= theta ? 1 : 0;
+
+  document.getElementById('weighted_sum').textContent = ws.toFixed(3);
+  document.getElementById('threshold_val').textContent = theta.toFixed(1);
+  document.getElementById('output_val').textContent = out === 1 ? '1 (발화!)' : '0 (침묵)';
+  document.getElementById('output_val').style.color = out === 1 ? '#00ff88' : '#ff3366';
+
+  drawPerceptron(x1, x2, w1, w2, theta, ws, out);
+}
+
+function drawPerceptron(x1, x2, w1, w2, theta, ws, out) {
+  const canvas = document.getElementById('perceptronCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio || 500;
+  canvas.height = 400;
+  ctx.scale(window.devicePixelRatio || 1, 1);
+  const W = canvas.offsetWidth || 500;
+  const H = 400;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#060610';
+  ctx.fillRect(0, 0, W, H);
+
+  const inputColor = '#3366ff';
+  const nodeColor = out === 1 ? '#00ff88' : '#ff3366';
+  const dimColor = '#1e1e3a';
+
+  // Input nodes
+  const inputs = [{x: W*0.2, y: H*0.3, val: x1, w: w1, label: 'x₁'}, {x: W*0.2, y: H*0.7, val: x2, w: w2, label: 'x₂'}];
+  const outNode = {x: W*0.75, y: H*0.5};
+
+  inputs.forEach(inp => {
+    const alpha = Math.abs(inp.w);
+    ctx.beginPath();
+    ctx.moveTo(inp.x + 20, inp.y);
+    ctx.lineTo(outNode.x - 25, outNode.y);
+    ctx.strokeStyle = inp.w > 0 ? `rgba(0,255,136,${alpha})` : `rgba(255,51,102,${alpha})`;
+    ctx.lineWidth = 1 + alpha * 3;
+    ctx.stroke();
+
+    // Weight label
+    const mx = (inp.x + outNode.x) / 2;
+    const my = (inp.y + outNode.y) / 2;
+    ctx.fillStyle = inp.w > 0 ? '#00ff88' : '#ff3366';
+    ctx.font = '12px JetBrains Mono';
+    ctx.fillText(`w=${inp.w.toFixed(1)}`, mx - 20, my - 5);
+
+    // Input node
+    ctx.beginPath();
+    ctx.arc(inp.x, inp.y, 20, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(51,102,255,${inp.val})`;
+    ctx.fill();
+    ctx.strokeStyle = inputColor;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(inp.label, inp.x, inp.y - 4);
+    ctx.font = '10px JetBrains Mono';
+    ctx.fillText(inp.val.toFixed(1), inp.x, inp.y + 9);
+  });
+
+  // Output node
+  ctx.beginPath();
+  ctx.arc(outNode.x, outNode.y, 30, 0, Math.PI*2);
+  ctx.fillStyle = out === 1 ? 'rgba(0,255,136,0.2)' : 'rgba(255,51,102,0.1)';
+  ctx.fill();
+  ctx.strokeStyle = nodeColor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  if (out === 1) {
+    ctx.beginPath();
+    ctx.arc(outNode.x, outNode.y, 38, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(0,255,136,0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = nodeColor;
+  ctx.font = 'bold 13px JetBrains Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText(out === 1 ? '발화!' : '침묵', outNode.x, outNode.y - 5);
+  ctx.font = '10px JetBrains Mono';
+  ctx.fillText(`Σ=${ws.toFixed(2)}`, outNode.x, outNode.y + 10);
+
+  // Threshold line
+  ctx.beginPath();
+  ctx.moveTo(outNode.x - 50, outNode.y + 50);
+  ctx.lineTo(outNode.x + 50, outNode.y + 50);
+  ctx.strokeStyle = '#ffaa00';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#ffaa00';
+  ctx.font = '10px JetBrains Mono';
+  ctx.fillText(`θ=${theta.toFixed(1)}`, outNode.x + 40, outNode.y + 48);
+
+  ctx.textAlign = 'left';
+}
+
+// ===== 2. BACKPROP =====
+let bpWeights = {w1: Math.random()-0.5, w2: Math.random()-0.5, bias: Math.random()-0.5};
+let lossHistory = [];
+let epochCount = 0;
+const andData = [[0,0,0],[0,1,0],[1,0,0],[1,1,1]];
+
+function sigmoid(x) { return 1/(1+Math.exp(-x)); }
+
+function trainStep() {
+  const lr = +document.getElementById('lr').value;
+  let totalLoss = 0;
+  andData.forEach(([x1,x2,t]) => {
+    const out = sigmoid(bpWeights.w1*x1 + bpWeights.w2*x2 + bpWeights.bias);
+    const err = t - out;
+    totalLoss += err*err;
+    const delta = err * out * (1-out);
+    bpWeights.w1 += lr * delta * x1;
+    bpWeights.w2 += lr * delta * x2;
+    bpWeights.bias += lr * delta;
+  });
+  epochCount++;
+  lossHistory.push(totalLoss/4);
+  if (lossHistory.length > 100) lossHistory.shift();
+  updateBackpropUI();
+}
+
+function trainMany() { for(let i=0;i<100;i++) trainStep(); }
+
+function resetBackprop() {
+  bpWeights = {w1: Math.random()-0.5, w2: Math.random()-0.5, bias: Math.random()-0.5};
+  lossHistory = [];
+  epochCount = 0;
+  updateBackpropUI();
+}
+
+function updateBackpropUI() {
+  const loss = lossHistory[lossHistory.length-1] || 1;
+  document.getElementById('lossDisplay').textContent = (loss).toFixed(4);
+  document.getElementById('lossDisplay').style.color = loss < 0.01 ? '#00ff88' : loss < 0.1 ? '#ffaa00' : '#ff3366';
+  document.getElementById('epochDisplay').textContent = `epoch: ${epochCount}`;
+  document.getElementById('bw1').textContent = bpWeights.w1.toFixed(3);
+  document.getElementById('bw2').textContent = bpWeights.w2.toFixed(3);
+  document.getElementById('bbias').textContent = bpWeights.bias.toFixed(3);
+  drawBackprop();
+  drawLoss();
+}
+
+function drawBackprop() {
+  const canvas = document.getElementById('backpropCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * devicePixelRatio || 500;
+  canvas.height = 400;
+  ctx.scale(devicePixelRatio, 1);
+  const W = canvas.offsetWidth || 500;
+  const H = 400;
+  ctx.fillStyle = '#060610';
+  ctx.fillRect(0,0,W,H);
+
+  // Draw AND truth table with predictions
+  ctx.font = '11px JetBrains Mono';
+  ctx.fillStyle = '#555577';
+  ctx.fillText('AND 게이트 학습', 20, 25);
+
+  const cols = ['x₁', 'x₂', '정답', '예측', '오차'];
+  const colX = [50, 110, 170, 240, 310];
+  ctx.fillStyle = '#555577';
+  cols.forEach((c,i) => { ctx.fillText(c, colX[i], 50); });
+
+  andData.forEach(([x1,x2,t], ri) => {
+    const pred = sigmoid(bpWeights.w1*x1 + bpWeights.w2*x2 + bpWeights.bias);
+    const err = Math.abs(t - pred);
+    const y = 75 + ri*35;
+    const correct = err < 0.3;
+
+    ctx.fillStyle = correct ? 'rgba(0,255,136,0.05)' : 'rgba(255,51,102,0.05)';
+    ctx.fillRect(30, y-15, W-60, 28);
+
+    ctx.fillStyle = '#c8c8e0';
+    ctx.fillText(x1, colX[0], y);
+    ctx.fillText(x2, colX[1], y);
+    ctx.fillStyle = '#ffaa00';
+    ctx.fillText(t, colX[2], y);
+    ctx.fillStyle = correct ? '#00ff88' : '#ff3366';
+    ctx.fillText(pred.toFixed(2), colX[3], y);
+    ctx.fillStyle = '#555577';
+    ctx.fillText(err.toFixed(3), colX[4], y);
+  });
+
+  // Weight visualization
+  const cx = W*0.75, cy = H*0.6;
+  ctx.fillStyle = '#555577';
+  ctx.font = '11px JetBrains Mono';
+  ctx.fillText('가중치 공간', cx - 40, cy - 80);
+
+  const maxW = 2;
+  const scale = 60;
+  ctx.strokeStyle = '#1e1e3a';
+  ctx.lineWidth = 1;
+  [-1,0,1].forEach(i => {
+    ctx.beginPath(); ctx.moveTo(cx+i*scale/maxW*maxW, cy-70); ctx.lineTo(cx+i*scale/maxW*maxW, cy+70); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx-70, cy+i*scale/maxW*maxW); ctx.lineTo(cx+70, cy+i*scale/maxW*maxW); ctx.stroke();
+  });
+
+  const wx = (bpWeights.w1/maxW)*scale;
+  const wy = -(bpWeights.w2/maxW)*scale;
+
+  ctx.beginPath();
+  ctx.arc(cx+wx, cy+wy, 8, 0, Math.PI*2);
+  ctx.fillStyle = '#3366ff';
+  ctx.fill();
+  ctx.strokeStyle = '#00ff88';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = '#c8c8e0';
+  ctx.font = '10px JetBrains Mono';
+  ctx.fillText('w₁', cx+72, cy+4);
+  ctx.fillText('w₂', cx+4, cy-72);
+}
+
+function drawLoss() {
+  const canvas = document.getElementById('lossCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * devicePixelRatio || 500;
+  canvas.height = 150;
+  ctx.scale(devicePixelRatio, 1);
+  const W = canvas.offsetWidth || 500;
+  const H = 150;
+  ctx.fillStyle = '#060610';
+  ctx.fillRect(0,0,W,H);
+
+  if (lossHistory.length < 2) return;
+  ctx.fillStyle = '#555577';
+  ctx.font = '10px JetBrains Mono';
+  ctx.fillText('Loss', 10, 20);
+
+  const max = Math.max(...lossHistory, 0.01);
+  ctx.beginPath();
+  lossHistory.forEach((l,i) => {
+    const x = (i/lossHistory.length)*W;
+    const y = H - (l/max)*(H-30) - 10;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = '#00ff88';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(0,255,136,0.1)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  lossHistory.forEach((l,i) => {
+    const x = (i/lossHistory.length)*W;
+    const y = H - (l/max)*(H-30) - 10;
+    ctx.moveTo(x, H);
+    ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+
+// ===== 3. ATTENTION =====
+const sentences = [
+  ['나는', '배가', '고파서', '배를', '먹었다'],
+  ['신경망은', '뉴런을', '모방한', '수학', '모델이다']
+];
+
+const attentionMatrices = [
+  [
+    [0.9, 0.3, 0.2, 0.2, 0.3],
+    [0.3, 0.9, 0.7, 0.5, 0.6],
+    [0.2, 0.7, 0.9, 0.3, 0.8],
+    [0.2, 0.5, 0.3, 0.9, 0.7],
+    [0.3, 0.6, 0.8, 0.7, 0.9]
+  ],
+  [
+    [0.9, 0.5, 0.4, 0.3, 0.4],
+    [0.5, 0.9, 0.8, 0.6, 0.5],
+    [0.4, 0.8, 0.9, 0.7, 0.6],
+    [0.3, 0.6, 0.7, 0.9, 0.8],
+    [0.4, 0.5, 0.6, 0.8, 0.9]
+  ]
+];
+
+let currentSentence = 0;
+let selectedToken = 0;
+
+function setSentence(idx) {
+  currentSentence = idx;
+  selectedToken = 0;
+  renderTokens();
+  drawAttention();
+}
+
+function renderTokens() {
+  const tokens = sentences[currentSentence];
+  const row = document.getElementById('tokenRow');
+  row.innerHTML = '';
+  tokens.forEach((t, i) => {
+    const el = document.createElement('div');
+    el.className = 'token' + (i===selectedToken?' selected':'');
+    el.textContent = t;
+    el.onclick = () => { selectedToken = i; renderTokens(); drawAttention(); updateScores(); };
+    row.appendChild(el);
+  });
+  updateScores();
+}
+
+function updateScores() {
+  const tokens = sentences[currentSentence];
+  const mat = attentionMatrices[currentSentence];
+  const scores = mat[selectedToken];
+  const container = document.getElementById('attentionScores');
+  container.innerHTML = '';
+  tokens.forEach((t,i) => {
+    const row = document.createElement('div');
+    row.className = 'stat-row';
+    const pct = (scores[i]*100).toFixed(0)+'%';
+    row.innerHTML = `<span>${t}</span><span style="color:${scoreColor(scores[i])}">${scores[i].toFixed(2)}</span>`;
+    container.appendChild(row);
+  });
+}
+
+function scoreColor(v) {
+  if (v > 0.7) return '#00ff88';
+  if (v > 0.4) return '#ffaa00';
+  return '#555577';
+}
+
+function drawAttention() {
+  const canvas = document.getElementById('attentionCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * devicePixelRatio || 400;
+  canvas.height = 500;
+  ctx.scale(devicePixelRatio, 1);
+  const W = canvas.offsetWidth || 400;
+  const H = 500;
+  ctx.fillStyle = '#060610';
+  ctx.fillRect(0,0,W,H);
+
+  const tokens = sentences[currentSentence];
+  const mat = attentionMatrices[currentSentence];
+  const n = tokens.length;
+  const cellSize = Math.min((W-80)/n, 60);
+  const startX = (W - n*cellSize - 40) / 2 + 40;
+  const startY = 60;
+
+  ctx.fillStyle = '#555577';
+  ctx.font = '10px JetBrains Mono';
+  ctx.fillText('어텐션 히트맵', 20, 25);
+  ctx.fillStyle = '#333355';
+  ctx.font = '9px JetBrains Mono';
+  ctx.fillText('(밝을수록 강한 어텐션)', 20, 40);
+
+  // Column labels
+  tokens.forEach((t,i) => {
+    ctx.fillStyle = i===selectedToken ? '#00ff88' : '#c8c8e0';
+    ctx.font = `${i===selectedToken?'bold ':''} 11px JetBrains Mono`;
+    ctx.textAlign = 'center';
+    ctx.fillText(t, startX + i*cellSize + cellSize/2, startY - 10);
+  });
+
+  // Row labels + cells
+  mat.forEach((row, ri) => {
+    ctx.fillStyle = ri===selectedToken ? '#00ff88' : '#c8c8e0';
+    ctx.font = `${ri===selectedToken?'bold ':''} 11px JetBrains Mono`;
+    ctx.textAlign = 'right';
+    ctx.fillText(tokens[ri], startX - 8, startY + ri*cellSize + cellSize/2 + 4);
+
+    row.forEach((val, ci) => {
+      const x = startX + ci*cellSize;
+      const y = startY + ri*cellSize;
+      const highlight = ri===selectedToken || ci===selectedToken;
+      const alpha = highlight ? val : val*0.3;
+
+      if (ri===selectedToken && ci===selectedToken) {
+        ctx.fillStyle = `rgba(255,170,0,${alpha})`;
+      } else if (ri===selectedToken || ci===selectedToken) {
+        ctx.fillStyle = `rgba(0,255,136,${alpha})`;
+      } else {
+        ctx.fillStyle = `rgba(51,102,255,${alpha})`;
+      }
+
+      ctx.fillRect(x+1, y+1, cellSize-2, cellSize-2);
+
+      ctx.fillStyle = val > 0.6 ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.3)';
+      ctx.font = '9px JetBrains Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText(val.toFixed(1), x+cellSize/2, y+cellSize/2+3);
+    });
+  });
+
+  // Connection lines from selected token
+  const selY = startY + selectedToken*cellSize + cellSize/2;
+  const selX_row = startX - 8;
+
+  ctx.textAlign = 'left';
+}
+
+// ===== 4. TRANSFORMER =====
+const layers = [
+  {name: 'Input Embedding', color: '#3366ff', desc: '토큰을 고차원 벡터로 변환합니다. "배"라는 단어가 숫자 배열로 바뀝니다. 이 벡터 공간에서 의미가 가까운 단어는 거리도 가깝습니다.'},
+  {name: 'Positional Encoding', color: '#5544ff', desc: '단어의 위치 정보를 벡터에 추가합니다. 트랜스포머는 순서를 모르기 때문에 sin/cos 함수로 위치를 인코딩합니다.'},
+  {name: 'Multi-Head Attention', color: '#00ff88', desc: '여러 개의 어텐션 헤드가 병렬로 다른 관점에서 관계를 봅니다. 한 헤드는 문법, 다른 헤드는 의미를 볼 수 있습니다.'},
+  {name: 'Add & Layer Norm', color: '#44aa88', desc: '잔차 연결(residual connection)로 입력을 더하고 정규화합니다. 깊은 네트워크에서 그래디언트 소실을 방지합니다.'},
+  {name: 'Feed Forward', color: '#ffaa00', desc: '각 위치의 벡터를 독립적으로 처리하는 완전연결층입니다. 비선형 변환으로 표현력을 높입니다.'},
+  {name: 'Add & Layer Norm', color: '#cc8800', desc: '두 번째 잔차 연결과 정규화입니다. 이 블록이 N번 반복됩니다. GPT-3는 96층입니다.'},
+  {name: 'Linear + Softmax', color: '#ff3366', desc: '최종 벡터를 어휘 크기의 확률 분포로 변환합니다. 가장 확률 높은 토큰이 다음 단어로 출력됩니다.'},
+];
+
+let selectedLayer = -1;
+
+function drawTransformer() {
+  const canvas = document.getElementById('transformerCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * devicePixelRatio || 400;
+  canvas.height = 550;
+  ctx.scale(devicePixelRatio, 1);
+  const W = canvas.offsetWidth || 400;
+  const H = 550;
+  ctx.fillStyle = '#060610';
+  ctx.fillRect(0,0,W,H);
+
+  const lh = 55;
+  const startY = 30;
+  const bx = W/2 - 120;
+  const bw = 240;
+
+  layers.forEach((layer, i) => {
+    const y = startY + i*lh;
+    const isSelected = i === selectedLayer;
+    const alpha = isSelected ? 1 : 0.6;
+
+    // Box
+    ctx.fillStyle = isSelected ? layer.color+'33' : layer.color+'11';
+    ctx.fillRect(bx, y, bw, 44);
+    ctx.strokeStyle = isSelected ? layer.color : layer.color+'66';
+    ctx.lineWidth = isSelected ? 2 : 1;
+    ctx.strokeRect(bx, y, bw, 44);
+
+    // Label
+    ctx.fillStyle = isSelected ? layer.color : layer.color+'aa';
+    ctx.font = `${isSelected?'bold ':''} 11px JetBrains Mono`;
+    ctx.textAlign = 'center';
+    ctx.fillText(layer.name, W/2, y+27);
+
+    // Arrow
+    if (i < layers.length-1) {
+      ctx.beginPath();
+      ctx.moveTo(W/2, y+44);
+      ctx.lineTo(W/2, y+lh-2);
+      ctx.strokeStyle = '#1e1e3a';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(W/2-4, y+lh-8);
+      ctx.lineTo(W/2, y+lh-2);
+      ctx.lineTo(W/2+4, y+lh-8);
+      ctx.stroke();
+    }
+
+    // Click area
+    canvas._layers = canvas._layers || [];
+    canvas._layers[i] = {y, h: 44};
+  });
+
+  ctx.textAlign = 'left';
+
+  // Input/Output labels
+  ctx.fillStyle = '#555577';
+  ctx.font = '10px JetBrains Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText('↑ 입력 토큰', W/2, startY - 5);
+  ctx.fillText('↓ 출력 확률', W/2, startY + layers.length*lh + 10);
+
+  canvas.onclick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const my = (e.clientY - rect.top) * (canvas.height / rect.height) / devicePixelRatio;
+    layers.forEach((l, i) => {
+      const ly = startY + i*lh;
+      if (my >= ly && my <= ly+44) {
+        selectedLayer = i === selectedLayer ? -1 : i;
+        document.getElementById('layerDesc').textContent = selectedLayer >= 0 ? layers[selectedLayer].desc : '레이어를 클릭하세요.';
+        document.getElementById('layerDesc').style.color = selectedLayer >= 0 ? layers[selectedLayer].color : '#c8c8e0';
+        drawTransformer();
+      }
+    });
+  };
+}
+
+// ===== INIT =====
+updatePerceptron();
+resetBackprop();
+renderTokens();
+drawAttention();
+drawTransformer();
+
+window.addEventListener('resize', () => {
+  updatePerceptron();
+  drawBackprop();
+  drawLoss();
+  drawAttention();
+  drawTransformer();
+});
+</script>
+</body>
+</html>
